@@ -42,8 +42,8 @@ public class DragArea extends FrameLayout
 
   private float    mX;
   private float    mY;
-  private Point    mTouchPoint;
-  private Drawable mShadow;
+
+  private DragShadowBuilder mShadowBuilder;
 
   private void initDragArea()
   {
@@ -52,7 +52,6 @@ public class DragArea extends FrameLayout
     mDrag = false;
     mX = 0;
     mY = 0;
-    mTouchPoint = new Point(0,0);
 
     setWillNotDraw(false);
   }
@@ -80,14 +79,14 @@ public class DragArea extends FrameLayout
    * @param shadow Shadow image that should be used for visualising the drag operation.
    * @param touch Position within the shadow image that is underneath the touch point.
    */
-  public void startDrag(Drawable shadow, Point touchPoint)
+  public void startDrag(DragShadowBuilder shadowBuilder)
   {
+    // TODO Abort a drag if one is already started.
     dragStarted();
     // A drag operation will be aborted in the case
     // that the user is no longer touching the view.
     if (mTouching) {
-      mShadow = shadow;
-      mTouchPoint = touchPoint;
+      mShadowBuilder = shadowBuilder;
 
       dragMoved();
     } else {
@@ -171,7 +170,6 @@ public class DragArea extends FrameLayout
           mY = event.getY();
 
           dragMoved();
-          invalidate();
           break;
         case MotionEvent.ACTION_UP:
           // Update the touch point
@@ -179,10 +177,8 @@ public class DragArea extends FrameLayout
           mY = event.getY();
 
           dragDropped();
-          invalidate();
         case MotionEvent.ACTION_CANCEL:
           dragAborted();
-          invalidate();
         default:
           // Only handle touch events.
           handled = false;
@@ -192,18 +188,29 @@ public class DragArea extends FrameLayout
     return handled;
   }
 
+  /*
+   * FIXME Not sure if overriding dispatchDraw is the correct thing
+   * to do. Perhaps adding an extra frame that sits on top of
+   * all the other children and drawing to that frame would be
+   * a better option. Need to investigate.
+   */
   @Override
-  public void onDraw(Canvas canvas)
+  public void dispatchDraw(Canvas canvas)
   {
     // Draw our child views
-    super.onDraw(canvas);
+    super.dispatchDraw(canvas);
 
     // Draw the drag shadow
-    if (mDrag && (mShadow != null)) {
+    if (mDrag && (mShadowBuilder != null)) {
+      Point size = new Point();;
+      Point touchPoint = new Point();
+
+      mShadowBuilder.onProvideShadowMetrics(size, touchPoint);
+
       canvas.save();
       // Position the drag shadow underneath the touch point
-      canvas.translate(mX - mTouchPoint.x, mY - mTouchPoint.y);
-      mShadow.draw(canvas);
+      canvas.translate(mX - touchPoint.x, mY - touchPoint.y);
+      mShadowBuilder.onDraw(canvas);
       canvas.restore();
     }
   }
@@ -226,6 +233,7 @@ public class DragArea extends FrameLayout
       d.listener.onDrag(d.view, dragEnded);
     }
     mDrag = false;
+    invalidate();
   }
 
   private void dragMoved()
@@ -240,6 +248,7 @@ public class DragArea extends FrameLayout
         d.listener.onDrag(d.view, dragEvent);
       }
     }
+    invalidate();
   }
 
   private void dragDropped()
@@ -252,6 +261,7 @@ public class DragArea extends FrameLayout
       DragEvent dragEvent = new DragEvent(event, (int) mX, (int) mY);
       d.listener.onDrag(d.view, dragEvent);
     }
+    invalidate();
   }
 
   /*
