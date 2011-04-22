@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright (C) 2011 by Mark Doffman
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,6 +33,8 @@ import android.graphics.Rect;
 import android.content.Context;
 import android.util.AttributeSet;
 
+import android.os.Bundle;
+
 import java.util.HashMap;
 
 public class DragArea extends FrameLayout
@@ -39,6 +42,8 @@ public class DragArea extends FrameLayout
   private HashMap<OnDragListener, Droppable> mDroppables;
   private boolean  mTouching;
   private boolean  mDrag;
+
+  private Bundle   mDragBundle;
 
   private float    mX;
   private float    mY;
@@ -79,10 +84,9 @@ public class DragArea extends FrameLayout
    * @param shadow Shadow image that should be used for visualising the drag operation.
    * @param touch Position within the shadow image that is underneath the touch point.
    */
-  public void startDrag(DragShadowBuilder shadowBuilder)
+  public void startDrag(Bundle dragBundle, DragShadowBuilder shadowBuilder)
   {
-    // TODO Abort a drag if one is already started.
-    dragStarted();
+    dragStarted(dragBundle);
     // A drag operation will be aborted in the case
     // that the user is no longer touching the view.
     if (mTouching) {
@@ -215,9 +219,15 @@ public class DragArea extends FrameLayout
     }
   }
 
-  private void dragStarted()
+  private void dragStarted(Bundle dragBundle)
   {
-    DragEvent dragStarted = new DragEvent(DragEvent.ACTION_DRAG_STARTED, 0, 0);
+    // Abort current drag if one is already started.
+    if (mDrag)
+      dragAborted();
+
+    // Take a note of the clip data to deliver with all drag events.
+    mDragBundle = dragBundle;
+    DragEvent dragStarted = new DragEvent(mDragBundle, DragEvent.ACTION_DRAG_STARTED, 0, 0);
     for (Droppable d: mDroppables.values())
     {
       d.listener.onDrag(d.view, dragStarted);
@@ -227,7 +237,7 @@ public class DragArea extends FrameLayout
 
   private void dragAborted()
   {
-    DragEvent dragEnded = new DragEvent(DragEvent.ACTION_DRAG_ENDED, 0, 0);
+    DragEvent dragEnded = new DragEvent(mDragBundle, DragEvent.ACTION_DRAG_ENDED, 0, 0);
     for (Droppable d: mDroppables.values())
     {
       d.listener.onDrag(d.view, dragEnded);
@@ -244,7 +254,7 @@ public class DragArea extends FrameLayout
       int event = d.onMoveEvent(hit);
 
       if (event != 0) {
-        DragEvent dragEvent = new DragEvent(event, (int) mX, (int) mY);
+        DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
         d.listener.onDrag(d.view, dragEvent);
       }
     }
@@ -258,7 +268,7 @@ public class DragArea extends FrameLayout
       boolean hit = isHit(d, (int) mX, (int) mY);
       int event = d.onUpEvent(hit);
 
-      DragEvent dragEvent = new DragEvent(event, (int) mX, (int) mY);
+      DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
       d.listener.onDrag(d.view, dragEvent);
     }
     invalidate();

@@ -21,6 +21,8 @@
  */
 package com.doffman.dragarea;
 
+import android.os.Bundle;
+
 public class DragEvent
 {
   public static final int ACTION_DRAG_STARTED  = 1;
@@ -34,10 +36,18 @@ public class DragEvent
   private int mY;
   private int mAction;
 
-  public DragEvent(int action, int x, int y)
+  private Bundle mData;
+
+  public DragEvent(Bundle data, int action, int x, int y)
   {
-    mX = x; mY = y;
+    mData = data;
     mAction = action;
+    mX = x; mY = y;
+  }
+
+  public Bundle getBundle()
+  {
+    return mData;
   }
 
   public int getAction()
