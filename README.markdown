@@ -1,5 +1,9 @@
+# DragArea
 
-An android library project that provides a DragArea container to
-enable Drag 'N Drop operations.
+This is an android library project that provides drag and drop operations
+on top of android-10.
 
-The API is inspired by the Drag and Drop extensions to android-11.
+Starting in android-11 (Android 3.0 / Honeycomb) Google provided drag and
+drop API's of their own. This library is based loosely on those API's
+and so may be useful to people wishing to develop for Android 2.0 who
+want an easyish upgrade path.

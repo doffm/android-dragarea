@@ -37,6 +37,24 @@ import android.os.Bundle;
 
 import java.util.HashMap;
 
+/**
+ * The DragArea is a standard FrameLayout that also provides Drag and Drop
+ * functionality.
+ *
+ * This class deals with drawing the drag shadow on top of its child views
+ * and handling data transfer and events for the drag operation.
+ *
+ * The drag shadow is a visualisation of the drag operation, an image placed
+ * beneath the users finger while dragging.
+ *
+ * Children of the DragArea may start a drag operation by calling the
+ * {@link DragArea#startDrag startDrag} method.
+ *
+ * Once a drag operation has begun {@link OnDragListener OnDragListener}
+ * objects that have registered themselves with the
+ * {@link DragArea#addDragListener} method will be called with drag events that
+ * are relevent to them.
+ */
 public class DragArea extends FrameLayout
 {
   private HashMap<OnDragListener, Droppable> mDroppables;
@@ -79,10 +97,12 @@ public class DragArea extends FrameLayout
   }
 
   /**
-   * Called to start dragging an object.
+   * Called to start a drag operation.
    * 
-   * @param shadow Shadow image that should be used for visualising the drag operation.
-   * @param touch Position within the shadow image that is underneath the touch point.
+   * @param dragBundle Used to pass information between the object starting the drag
+   *                   and the object on which the drop operation occurs.
+   * @param shadowBuilder Used to create a visualization of the drag operation called
+   *                      a drag shadow.
    */
   public void startDrag(Bundle dragBundle, DragShadowBuilder shadowBuilder)
   {
@@ -101,8 +121,11 @@ public class DragArea extends FrameLayout
   /**
    * Adds a drag listener to the drag area.
    * 
-   * The drag listener object will recieve drag events once any drag
+   * The drag listener object will recieve relevent drag events once any drag
    * operation has been started.
+   *
+   * The bounds of the associated view are needed to compare to the current
+   * touch point and decide which listener should recieve the drop event.
    *
    * @param listener A drag listener to be added to this drag area.
    * @param view The view associated with this drag listener.
@@ -286,11 +309,6 @@ public class DragArea extends FrameLayout
     // Translate to DragArea coordinates.
     offsetDescendantRectToMyCoords(droppable.view, hitRect);
 
-    /*
-    DragArea.this.debug ("x  = " + x + " y = " + y + "\n" +
-                         "left = " + hitRect.left + " top = " + hitRect.top + "\n" +
-                         "right = " + hitRect.right + " bottom = " + hitRect.bottom);
-     */
 
     return hitRect.contains(x, y);
   }

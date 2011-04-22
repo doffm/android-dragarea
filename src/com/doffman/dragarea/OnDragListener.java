@@ -29,9 +29,9 @@ import android.view.View;
 public interface OnDragListener
 {
   /**
-   * Called with pertinent drag events once a drag oparation is started
+   * Called with relevant drag events once a drag oparation is started
    *
-   * @param view The view that recieved the drag event
+   * @param view The view associated with the drag listener
    * @param event The drag event
    */
   public void onDrag(View view, DragEvent event);
