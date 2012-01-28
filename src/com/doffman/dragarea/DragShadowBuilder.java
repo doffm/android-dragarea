@@ -22,17 +22,34 @@
 package com.doffman.dragarea;
 
 import android.view.View;
+import android.graphics.Point;
+import android.graphics.Canvas;
 
 /**
- * Callback type for recieving drag events.
+ * Interface for drawing the drag shadow during
+ * a drag operation.
  */
-public interface OnDragListener
+public interface DragShadowBuilder
 {
   /**
-   * Called with relevant drag events once a drag oparation is started
+   * Returns the View object that started the drag operation.
    *
-   * @param view The view associated with the drag listener
-   * @param event The drag event
+   * @return The View object associated with this ShadowBuilder.
    */
-  public void onDrag(View view, DragEvent event);
+  public View getView();
+
+  /**
+   * Provides the size and touch point of the shadow image.
+   *
+   * The size and touch point of the image is where in the image should
+   * be placed beneath the touch point in the drag operation.
+   */
+  public void onProvideShadowMetrics(Point shadowSize, Point shadowTouchPoint);
+
+  /**
+   * Called to draw the shadow image.
+   *
+   * @param canvas A Canvas object to draw the drag shadow to.
+   */
+  public void onDraw(Canvas c);
 }

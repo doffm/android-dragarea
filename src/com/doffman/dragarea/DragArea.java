@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright (C) 2011 by Mark Doffman
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,18 +33,40 @@ import android.graphics.Rect;
 import android.content.Context;
 import android.util.AttributeSet;
 
+import android.os.Bundle;
+
 import java.util.HashMap;
 
+/**
+ * The DragArea is a standard FrameLayout that also provides Drag and Drop
+ * functionality.
+ *
+ * This class deals with drawing the drag shadow on top of its child views
+ * and handling data transfer and events for the drag operation.
+ *
+ * The drag shadow is a visualisation of the drag operation, an image placed
+ * beneath the users finger while dragging.
+ *
+ * Children of the DragArea may start a drag operation by calling the
+ * {@link DragArea#startDrag startDrag} method.
+ *
+ * Once a drag operation has begun {@link OnDragListener OnDragListener}
+ * objects that have registered themselves with the
+ * {@link DragArea#addDragListener} method will be called with drag events that
+ * are relevent to them.
+ */
 public class DragArea extends FrameLayout
 {
   private HashMap<OnDragListener, Droppable> mDroppables;
   private boolean  mTouching;
   private boolean  mDrag;
 
+  private Bundle   mDragBundle;
+
   private float    mX;
   private float    mY;
-  private Point    mTouchPoint;
-  private Drawable mShadow;
+
+  private DragShadowBuilder mShadowBuilder;
 
   private void initDragArea()
   {
@@ -52,7 +75,6 @@ public class DragArea extends FrameLayout
     mDrag = false;
     mX = 0;
     mY = 0;
-    mTouchPoint = new Point(0,0);
 
     setWillNotDraw(false);
   }
@@ -75,19 +97,20 @@ public class DragArea extends FrameLayout
   }
 
   /**
-   * Called to start dragging an object.
+   * Called to start a drag operation.
    * 
-   * @param shadow Shadow image that should be used for visualising the drag operation.
-   * @param touch Position within the shadow image that is underneath the touch point.
+   * @param dragBundle Used to pass information between the object starting the drag
+   *                   and the object on which the drop operation occurs.
+   * @param shadowBuilder Used to create a visualization of the drag operation called
+   *                      a drag shadow.
    */
-  public void startDrag(Drawable shadow, Point touchPoint)
+  public void startDrag(Bundle dragBundle, DragShadowBuilder shadowBuilder)
   {
-    dragStarted();
+    dragStarted(dragBundle);
     // A drag operation will be aborted in the case
     // that the user is no longer touching the view.
     if (mTouching) {
-      mShadow = shadow;
-      mTouchPoint = touchPoint;
+      mShadowBuilder = shadowBuilder;
 
       dragMoved();
     } else {
@@ -98,8 +121,11 @@ public class DragArea extends FrameLayout
   /**
    * Adds a drag listener to the drag area.
    * 
-   * The drag listener object will recieve drag events once any drag
+   * The drag listener object will recieve relevent drag events once any drag
    * operation has been started.
+   *
+   * The bounds of the associated view are needed to compare to the current
+   * touch point and decide which listener should recieve the drop event.
    *
    * @param listener A drag listener to be added to this drag area.
    * @param view The view associated with this drag listener.
@@ -171,7 +197,6 @@ public class DragArea extends FrameLayout
           mY = event.getY();
 
           dragMoved();
-          invalidate();
           break;
         case MotionEvent.ACTION_UP:
           // Update the touch point
@@ -179,10 +204,8 @@ public class DragArea extends FrameLayout
           mY = event.getY();
 
           dragDropped();
-          invalidate();
         case MotionEvent.ACTION_CANCEL:
           dragAborted();
-          invalidate();
         default:
           // Only handle touch events.
           handled = false;
@@ -192,25 +215,42 @@ public class DragArea extends FrameLayout
     return handled;
   }
 
+  /*
+   * FIXME Not sure if overriding dispatchDraw is the correct thing
+   * to do. Perhaps adding an extra frame that sits on top of
+   * all the other children and drawing to that frame would be
+   * a better option. Need to investigate.
+   */
   @Override
-  public void onDraw(Canvas canvas)
+  public void dispatchDraw(Canvas canvas)
   {
     // Draw our child views
-    super.onDraw(canvas);
+    super.dispatchDraw(canvas);
 
     // Draw the drag shadow
-    if (mDrag && (mShadow != null)) {
+    if (mDrag && (mShadowBuilder != null)) {
+      Point size = new Point();;
+      Point touchPoint = new Point();
+
+      mShadowBuilder.onProvideShadowMetrics(size, touchPoint);
+
       canvas.save();
       // Position the drag shadow underneath the touch point
-      canvas.translate(mX - mTouchPoint.x, mY - mTouchPoint.y);
-      mShadow.draw(canvas);
+      canvas.translate(mX - touchPoint.x, mY - touchPoint.y);
+      mShadowBuilder.onDraw(canvas);
       canvas.restore();
     }
   }
 
-  private void dragStarted()
+  private void dragStarted(Bundle dragBundle)
   {
-    DragEvent dragStarted = new DragEvent(DragEvent.ACTION_DRAG_STARTED, 0, 0);
+    // Abort current drag if one is already started.
+    if (mDrag)
+      dragAborted();
+
+    // Take a note of the clip data to deliver with all drag events.
+    mDragBundle = dragBundle;
+    DragEvent dragStarted = new DragEvent(mDragBundle, DragEvent.ACTION_DRAG_STARTED, 0, 0);
     for (Droppable d: mDroppables.values())
     {
       d.listener.onDrag(d.view, dragStarted);
@@ -220,12 +260,13 @@ public class DragArea extends FrameLayout
 
   private void dragAborted()
   {
-    DragEvent dragEnded = new DragEvent(DragEvent.ACTION_DRAG_ENDED, 0, 0);
+    DragEvent dragEnded = new DragEvent(mDragBundle, DragEvent.ACTION_DRAG_ENDED, 0, 0);
     for (Droppable d: mDroppables.values())
     {
       d.listener.onDrag(d.view, dragEnded);
     }
     mDrag = false;
+    invalidate();
   }
 
   private void dragMoved()
@@ -236,10 +277,11 @@ public class DragArea extends FrameLayout
       int event = d.onMoveEvent(hit);
 
       if (event != 0) {
-        DragEvent dragEvent = new DragEvent(event, (int) mX, (int) mY);
+        DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
         d.listener.onDrag(d.view, dragEvent);
       }
     }
+    invalidate();
   }
 
   private void dragDropped()
@@ -249,9 +291,10 @@ public class DragArea extends FrameLayout
       boolean hit = isHit(d, (int) mX, (int) mY);
       int event = d.onUpEvent(hit);
 
-      DragEvent dragEvent = new DragEvent(event, (int) mX, (int) mY);
+      DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
       d.listener.onDrag(d.view, dragEvent);
     }
+    invalidate();
   }
 
   /*
@@ -266,11 +309,6 @@ public class DragArea extends FrameLayout
     // Translate to DragArea coordinates.
     offsetDescendantRectToMyCoords(droppable.view, hitRect);
 
-    /*
-    DragArea.this.debug ("x  = " + x + " y = " + y + "\n" +
-                         "left = " + hitRect.left + " top = " + hitRect.top + "\n" +
-                         "right = " + hitRect.right + " bottom = " + hitRect.bottom);
-     */
 
     return hitRect.contains(x, y);
   }
