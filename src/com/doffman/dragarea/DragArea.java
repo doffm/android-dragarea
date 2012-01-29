@@ -291,8 +291,10 @@ public class DragArea extends FrameLayout
       boolean hit = isHit(d, (int) mX, (int) mY);
       int event = d.onUpEvent(hit);
 
-      DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
-      d.listener.onDrag(d.view, dragEvent);
+      if (event == DragEvent.ACTION_DROP) {
+        DragEvent dragEvent = new DragEvent(mDragBundle, event, (int) mX, (int) mY);
+        d.listener.onDrag(d.view, dragEvent);
+      }
     }
     invalidate();
   }
